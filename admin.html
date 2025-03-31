@@ -156,38 +156,34 @@
     </div>
 
     <script>
-        // Admin credentials (in real application, this should be server-side)
-        const ADMIN_USERNAME = 'admin';
-        const ADMIN_PASSWORD = 'admin123';
+        const socket = io('http://localhost:3000');
+        const adminPassword = 'admin123'; // In a real application, this should be securely stored on the server
 
-        // Login form handling
         document.getElementById('loginForm').addEventListener('submit', function(e) {
             e.preventDefault();
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
 
-            if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+            if (username === 'admin' && password === adminPassword) {
                 document.getElementById('loginSection').style.display = 'none';
                 document.getElementById('adminSection').style.display = 'block';
-                loadAttendanceData();
             } else {
                 alert('Invalid credentials!');
             }
         });
 
-        function loadAttendanceData() {
-            const attendanceData = JSON.parse(localStorage.getItem('attendanceData')) || [];
+        function displayAttendanceData(data) {
             const tbody = document.querySelector('#attendanceTable tbody');
             tbody.innerHTML = '';
 
-            attendanceData.forEach((entry, index) => {
+            data.forEach((entry, index) => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${entry.name}</td>
                     <td>${new Date(entry.datetime).toLocaleString()}</td>
                     <td>${entry.reason}</td>
                     <td>
-                        <button onclick="deleteEntry(${index})">Delete</button>
+                        <button onclick="deleteEntry(${index})" class="delete-btn">Delete</button>
                     </td>
                 `;
                 tbody.appendChild(row);
@@ -196,50 +192,38 @@
 
         function deleteEntry(index) {
             if (confirm('Are you sure you want to delete this entry?')) {
-                const attendanceData = JSON.parse(localStorage.getItem('attendanceData')) || [];
-                attendanceData.splice(index, 1);
-                localStorage.setItem('attendanceData', JSON.stringify(attendanceData));
-                loadAttendanceData();
+                socket.emit('delete-attendance', index);
             }
         }
 
-        function exportToCSV() {
-            const attendanceData = JSON.parse(localStorage.getItem('attendanceData')) || [];
-            if (attendanceData.length === 0) {
-                alert('No data to export!');
-                return;
-            }
+        function downloadCSV(data) {
+            let csvContent = 'Name,Date & Time,Reason\n';
 
-            const csvContent = [
-                ['Name', 'Date & Time', 'Reason'],
-                ...attendanceData.map(entry => [
-                    entry.name,
-                    new Date(entry.datetime).toLocaleString(),
-                    entry.reason
-                ])
-            ].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+            data.forEach(entry => {
+                csvContent += `${entry.name},${new Date(entry.datetime).toLocaleString()},${entry.reason}\n`;
+            });
 
             const blob = new Blob([csvContent], { type: 'text/csv' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = url;
-            a.download = 'attendance_data.csv';
+            a.setAttribute('href', url);
+            a.setAttribute('download', 'attendance_data.csv');
+            document.body.appendChild(a);
             a.click();
-            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
         }
 
-        function clearData() {
-            if (confirm('Are you sure you want to clear all attendance data? This cannot be undone!')) {
-                localStorage.removeItem('attendanceData');
-                loadAttendanceData();
-            }
-        }
+        // Initial data load
+        socket.on('initial-data', (data) => {
+            displayAttendanceData(data);
+        });
 
-        function logout() {
-            document.getElementById('loginSection').style.display = 'block';
-            document.getElementById('adminSection').style.display = 'none';
-            document.getElementById('loginForm').reset();
-        }
+        // Real-time updates
+        socket.on('attendance-update', (data) => {
+            displayAttendanceData(data);
+            // Update local storage for offline access
+            localStorage.setItem('attendanceData', JSON.stringify(data));
+        });
     </script>
 </body>
 </html>

@@ -112,20 +112,21 @@
     </div>
 
     <script>
-        function loadAttendanceData() {
-            const attendanceData = JSON.parse(localStorage.getItem('attendanceData')) || [];
+        const socket = io('http://localhost:3000');
+
+        function displayAttendance(data) {
             const tbody = document.querySelector('#attendanceTable tbody');
             tbody.innerHTML = '';
 
-            if (attendanceData.length === 0) {
+            if (data.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="3" class="no-data">No attendance records found</td></tr>';
                 return;
             }
 
             // Sort data by datetime in descending order
-            attendanceData.sort((a, b) => new Date(b.datetime) - new Date(a.datetime));
+            data.sort((a, b) => new Date(b.datetime) - new Date(a.datetime));
 
-            attendanceData.forEach(entry => {
+            data.forEach(entry => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${entry.name}</td>
@@ -148,8 +149,15 @@
             });
         }
 
-        // Load data when page loads
-        loadAttendanceData();
+        // Initial data load
+        socket.on('initial-data', (data) => {
+            displayAttendance(data);
+        });
+
+        // Real-time updates
+        socket.on('attendance-update', (data) => {
+            displayAttendance(data);
+        });
     </script>
 </body>
 </html>

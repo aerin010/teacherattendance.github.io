@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Teacher Attendance System</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
     <style>
         * {
             margin: 0;
@@ -109,6 +110,8 @@
         </div>
     </div>
     <script>
+        const socket = io('http://localhost:3000');
+
         document.getElementById('attendanceForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
@@ -119,12 +122,14 @@
                 timestamp: new Date().toISOString()
             };
 
-            let attendanceData = JSON.parse(localStorage.getItem('attendanceData')) || [];
-            attendanceData.push(formData);
-            localStorage.setItem('attendanceData', JSON.stringify(attendanceData));
-
+            socket.emit('submit-attendance', formData);
             alert('Attendance submitted successfully!');
             this.reset();
+        });
+
+        socket.on('attendance-update', (data) => {
+            // Store the updated data in localStorage for offline access
+            localStorage.setItem('attendanceData', JSON.stringify(data));
         });
     </script>
 </body>
